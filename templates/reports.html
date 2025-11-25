@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>导出中心</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>导出中心</h1>
+        <small>查看事件日志、导出最新检测记录、追踪失败重试</small>
+      </div>
+      <div><a href="/">检测队列</a> · <a href="/stats">统计报表</a></div>
+    </header>
+    <main>
+      <div class="card">
+        <div class="section-header">
+          <h2>事件日志（最近 200 条）</h2>
+          <small>包含入队、完成、失败等信号</small>
+        </div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>URL</th>
+                <th>事件</th>
+                <th>详情</th>
+                <th>时间</th>
+              </tr>
+            </thead>
+            <tbody id="events-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+    <script src="/static/reports.js"></script>
+  </body>
+</html>
