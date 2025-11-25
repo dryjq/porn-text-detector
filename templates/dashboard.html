@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>色情网站文本检测控制台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">文本识别教学系统</a>
+        <div class="d-flex align-items-center text-white">
+            <span class="me-3">欢迎，{{ username }}</span>
+            <a class="btn btn-outline-light btn-sm" href="/logout">退出</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container my-4">
+    <div class="banner mb-3">
+        <div>
+            <h2 class="fw-bold">基于文本的色情网站识别教学系统</h2>
+            <p class="mb-0">支持 fastText / TextCNN / RoBERTa-small / ALBERT 四种模型的课堂演示</p>
+        </div>
+    </div>
+
+    <div id="alert-box"></div>
+
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">模型选择</div>
+                <div class="card-body">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="model-option" value="fasttext" id="m1" checked>
+                        <label class="form-check-label" for="m1">fastText</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="model-option" value="textcnn" id="m2">
+                        <label class="form-check-label" for="m2">TextCNN</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="model-option" value="roberta" id="m3">
+                        <label class="form-check-label" for="m3">RoBERTa-small</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="model-option" value="albert" id="m4">
+                        <label class="form-check-label" for="m4">ALBERT</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">模型性能示例</div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead><tr><th>模型</th><th>Acc</th><th>Precision</th><th>Recall</th></tr></thead>
+                        <tbody>
+                        <tr><td>fastText</td><td>0.93</td><td>0.90</td><td>0.91</td></tr>
+                        <tr><td>TextCNN</td><td>0.95</td><td>0.92</td><td>0.94</td></tr>
+                        <tr><td>RoBERTa</td><td>0.97</td><td>0.96</td><td>0.95</td></tr>
+                        <tr><td>ALBERT</td><td>0.96</td><td>0.95</td><td>0.94</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <ul class="nav nav-pills mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-batch" type="button" role="tab">批量检测</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-online" type="button" role="tab">在线嗅探</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-text" type="button" role="tab">单条文本</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-history" type="button" role="tab">检测日志</button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="tab-batch" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>批量检测已嗅探到的网址</span>
+                            <a class="btn btn-outline-primary btn-sm" href="/api/export">导出结果 CSV</a>
+                        </div>
+                        <div class="card-body">
+                            <form id="batch-form">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">上传网址文件 (txt / csv)</label>
+                                        <input class="form-control" type="file" name="file" accept=".txt,.csv">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">或粘贴多行网址</label>
+                                        <textarea class="form-control" rows="4" name="urlText" placeholder="一行一个网址"></textarea>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" type="submit">开始批量检测</button>
+                            </form>
+                            <div class="table-responsive mt-3" id="batch-result">
+                                <table class="table table-bordered">
+                                    <thead><tr><th>#</th><th>URL</th><th>预测</th><th>概率</th><th>模型</th><th>状态</th><th>错误</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-online" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>在线嗅探域名并检测</span>
+                            <a class="btn btn-outline-primary btn-sm" href="/api/export">导出结果 CSV</a>
+                        </div>
+                        <div class="card-body">
+                            <form id="online-form">
+                                <div class="mb-3">
+                                    <label class="form-label">输入域名或 URL（可多行）</label>
+                                    <textarea class="form-control" rows="4" name="urlText" placeholder="example.com 或 https://example.com"></textarea>
+                                </div>
+                                <button class="btn btn-success" type="submit">在线嗅探并检测</button>
+                            </form>
+                            <div class="table-responsive mt-3" id="online-result">
+                                <table class="table table-bordered">
+                                    <thead><tr><th>#</th><th>URL</th><th>预测</th><th>概率</th><th>模型</th><th>状态</th><th>错误</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-text" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">单条文本快速测试</div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">输入文本</label>
+                                <textarea id="single-text" class="form-control" rows="4" placeholder="请输入待测文本"></textarea>
+                            </div>
+                            <button class="btn btn-warning" id="btn-text" type="button">测试</button>
+                            <div class="table-responsive mt-3" id="single-result">
+                                <table class="table table-bordered">
+                                    <thead><tr><th>#</th><th>文本来源</th><th>预测</th><th>概率</th><th>模型</th><th>状态</th><th>错误</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-history" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between">
+                            <span>检测日志</span>
+                            <a class="btn btn-outline-secondary btn-sm" href="/api/export-history">导出全部</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive" id="history-table">
+                                <table class="table table-bordered">
+                                    <thead><tr><th>#</th><th>URL</th><th>预测</th><th>概率</th><th>模型</th><th>状态</th><th>时间</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="model-card">
+                <h5>fastText</h5>
+                <p class="text-muted">n-gram + 线性分类，速度快、资源占用小，适合基线模型或移动端。</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="model-card">
+                <h5>TextCNN</h5>
+                <p class="text-muted">卷积提取局部语义特征，训练收敛快，对少量样本也有不错表现。</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="model-card">
+                <h5>RoBERTa-small</h5>
+                <p class="text-muted">预训练语言模型，能捕获更丰富的上下文语义，精度高但推理较慢。</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="model-card">
+                <h5>ALBERT</h5>
+                <p class="text-muted">参数共享、轻量化的 BERT 变体，适合资源有限场景下的部署。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>
