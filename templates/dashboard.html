@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <h1>色情文本检测平台</h1>
+            <p>管理模型、数据集与实验记录</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" data-target="tab-detection">检测</button>
+            <button class="tab-button" data-target="tab-training">训练</button>
+        </div>
+
+        <section id="tab-detection" class="tab-panel active">
+            <div class="placeholder">
+                <p>检测功能占位内容，可在此添加文本检测表单与结果展示。</p>
+            </div>
+        </section>
+
+        <section id="tab-training" class="tab-panel">
+            <div class="panel-header">
+                <h2>模型训练</h2>
+                <p>选择模型与数据集，配置超参数并启动训练。</p>
+            </div>
+
+            <form id="training-form" class="training-form">
+                <div class="form-grid">
+                    <label>
+                        模型选择
+                        <select name="model" id="model-select" required>
+                            <option value="" disabled selected>请选择模型</option>
+                        </select>
+                    </label>
+                    <label>
+                        数据集选择
+                        <select name="dataset" id="dataset-select" required>
+                            <option value="" disabled selected>请选择数据集</option>
+                        </select>
+                    </label>
+                    <label>
+                        学习率
+                        <input type="number" name="learning_rate" id="learning-rate" step="0.0001" min="0" value="0.001" required>
+                    </label>
+                    <label>
+                        Epochs
+                        <input type="number" name="epochs" id="epochs" min="1" value="10" required>
+                    </label>
+                    <label>
+                        Batch Size
+                        <input type="number" name="batch_size" id="batch-size" min="1" value="32" required>
+                    </label>
+                    <label>
+                        权重衰减
+                        <input type="number" name="weight_decay" id="weight-decay" step="0.0001" min="0" value="0.0005">
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="primary">开始训练</button>
+                    <button type="button" id="refresh-experiments" class="secondary">刷新实验列表</button>
+                </div>
+            </form>
+
+            <div class="log-section">
+                <div class="section-header">
+                    <h3>训练日志</h3>
+                    <span id="training-status" class="status-badge idle">待机</span>
+                </div>
+                <div id="training-log" class="log-window" aria-live="polite"></div>
+            </div>
+
+            <div class="records-section">
+                <div class="section-header">
+                    <h3>实验记录</h3>
+                    <div class="section-actions">
+                        <button type="button" id="load-experiments" class="secondary">加载实验</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="experiment-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>模型</th>
+                                <th>数据集</th>
+                                <th>学习率</th>
+                                <th>Epoch</th>
+                                <th>Batch</th>
+                                <th>状态</th>
+                                <th>指标</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="8" class="muted">暂无记录，点击“加载实验”获取最新列表。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <div class="section-header">
+                    <h3>指标对比</h3>
+                </div>
+                <canvas id="metrics-chart" width="400" height="240" aria-label="指标对比图" role="img"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
