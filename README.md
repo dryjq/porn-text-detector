@@ -17,6 +17,8 @@
 - 后台线程会持续拉取队列，将状态从 `pending` → `in_progress` → `completed`；前端每 2 秒轮询进度接口并更新进度条。
 - 进度接口 `/api/progress` 返回总数、已完成数、命中率（色情命中数/已完成数），便于前端渲染。
 - 最近检测结果表格显示 `url`、`model`、`score` 与状态标签，可用于快速确认检测效果。
+- 队列详情 `/api/queue` 提供优先级、尝试次数与状态；`/api/retry_failed` 可重试失败任务，`/api/purge_completed` 可清理历史记录。
+- 事件流 `/api/events` 记录入队、完成、失败等操作，便于回溯。
 
 ## 种子域名与定时扫描
 
@@ -29,6 +31,15 @@
 - 访问 `/stats` 查看图表：
   - 按天检测数量与命中数量（折线图）。
   - 模型调用次数（柱状图）。
+  - 域名热度与耗时分布（柱状/饼图）。
+- 命中率汇总以百分比展示，所有统计均来自 `urls` 表 `completed` 状态的数据。
+- 统计数据接口 `/api/stats` 支持前端或第三方 BI 拉取。
+
+## 事件日志
+
+- 事件流表 `events` 记录队列关键节点：`event` 字段包含 `enqueued/completed/failed`，`payload` 为 JSON 字符串。
+- 可以通过 `sqlite3 app.db 'SELECT * FROM events ORDER BY id DESC LIMIT 20'` 直接查询，或在 `/reports` 页面查看最近 200 条事件。
+
 - 命中率汇总以百分比展示，所有统计均来自 `urls` 表 `completed` 状态的数据。
 - 统计数据接口 `/api/stats` 支持前端或第三方 BI 拉取。
 

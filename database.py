@@ -9,6 +9,8 @@ def init_db(conn: sqlite3.Connection) -> None:
             url TEXT NOT NULL,
             status TEXT NOT NULL,
             model TEXT,
+            priority INTEGER DEFAULT 10,
+            attempts INTEGER DEFAULT 0,
             score REAL,
             is_porn INTEGER,
             message TEXT,
@@ -24,6 +26,18 @@ def init_db(conn: sqlite3.Connection) -> None:
             domain TEXT NOT NULL,
             last_scanned_at TEXT,
             created_at TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url_id INTEGER,
+            event TEXT NOT NULL,
+            payload TEXT,
+            created_at TEXT,
+            FOREIGN KEY(url_id) REFERENCES urls(id)
         )
         """
     )

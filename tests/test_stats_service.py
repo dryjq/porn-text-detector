@@ -16,6 +16,11 @@ def test_stats_summary(tmp_path):
         pass
 
     stats = build_stats(service.conn)
+    assert "daily" in stats and stats["daily"]
+    assert any(item["hits"] >= 0 for item in stats["daily"])
+    assert any(item["model"] == "default" for item in stats["models"])
+    assert "latency" in stats
+    assert "statuses" in stats
     assert stats["hit_rate"] >= 0
     assert any(item["hits"] >= 0 for item in stats["daily_counts"])
     assert any(item["model"] == "default" for item in stats["model_usage"])

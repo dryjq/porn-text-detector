@@ -1,3 +1,28 @@
+import random
+import sqlite3
+import threading
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, Iterable, List, Optional, Tuple
+
+from analytics_service import log_event
+from database import init_db
+from rules_library import explain_score, score_for_text
+
+
+@dataclass
+class Job:
+    id: int
+    url: str
+    model: str
+    priority: int
+    attempts: int
+
+
+class DetectionService:
+    """Coordinates async detection, seeding, and progress tracking."""
+
 import sqlite3
 import threading
 import time
@@ -46,6 +71,25 @@ class DetectionService:
         if self.seed_thread:
             self.seed_thread.join(timeout=2)
 
+    def enqueue_urls(self, urls: Iterable[str], model: str = "default", priority: int = 10) -> int:
+        now = datetime.utcnow().isoformat()
+        inserted = 0
+        with self.lock:
+            for url in urls:
+                exists = self.conn.execute("SELECT 1 FROM urls WHERE url=?", (url,)).fetchone()
+                if exists:
+                    continue
+                self.conn.execute(
+                    """
+                    INSERT INTO urls(url, status, model, priority, attempts, created_at, updated_at)
+                    VALUES(?, 'pending', ?, ?, 0, ?, ?)
+                    """,
+                    (url, model, priority, now, now),
+                )
+                log_event(self.conn, self.conn.execute("SELECT last_insert_rowid()").fetchone()[0], "enqueued", {"model": model, "priority": priority})
+                inserted += 1
+            self.conn.commit()
+        return inserted
     def enqueue_urls(self, urls: Iterable[str], model: str = "default") -> None:
         now = datetime.utcnow().isoformat()
         with self.lock:
@@ -67,6 +111,7 @@ class DetectionService:
             hits = self.conn.execute(
                 "SELECT COUNT(*) FROM urls WHERE status='completed' AND is_porn=1"
             ).fetchone()[0]
+            failed = counts.get("failed", 0)
         completed = counts.get("completed", 0)
         percent = float(completed) / total * 100 if total else 0.0
         return {
@@ -74,11 +119,35 @@ class DetectionService:
             "pending": counts.get("pending", 0),
             "in_progress": counts.get("in_progress", 0),
             "completed": completed,
+            "failed": failed,
             "hit_rate": float(hits) / completed if completed else 0.0,
             "hits": hits,
             "percent": percent,
         }
 
+    def queue_status(self, limit: int = 100) -> List[Dict[str, str]]:
+        with self.lock:
+            rows = self.conn.execute(
+                """
+                SELECT id, url, status, model, priority, attempts, message, updated_at
+                FROM urls
+                ORDER BY status DESC, priority DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def recent_results(self, limit: int = 50) -> List[Dict[str, str]]:
+        with self.lock:
+            rows = self.conn.execute(
+                """
+                SELECT id, url, model, score, is_porn, status, priority, attempts, updated_at, message
+                FROM urls
+                WHERE status IN ('completed', 'failed')
+                ORDER BY id DESC
+                LIMIT ?
+                """,
     def recent_results(self, limit: int = 50) -> List[Dict[str, str]]:
         with self.lock:
             rows = self.conn.execute(
@@ -103,11 +172,39 @@ class DetectionService:
             rows = self.conn.execute("SELECT domain FROM seeds ORDER BY domain").fetchall()
         return [row["domain"] for row in rows]
 
+    def retry_failed(self) -> int:
+        now = datetime.utcnow().isoformat()
+        with self.lock:
+            cur = self.conn.execute(
+                "UPDATE urls SET status='pending', updated_at=?, message=NULL WHERE status='failed'",
+                (now,),
+            )
+            self.conn.commit()
+            return cur.rowcount
+
+    def purge_completed(self, days: int = 30) -> int:
+        cutoff = datetime.utcnow().timestamp() - days * 86400
+        cutoff_iso = datetime.utcfromtimestamp(cutoff).isoformat()
+        with self.lock:
+            cur = self.conn.execute(
+                "DELETE FROM urls WHERE status='completed' AND updated_at < ?",
+                (cutoff_iso,),
+            )
+            self.conn.commit()
+            return cur.rowcount
+
     def _worker_loop(self) -> None:
         while not self.stop_event.is_set():
             if not self.process_next_job():
                 self.stop_event.wait(1)
 
+    def _fetch_next_job(self) -> Optional[Job]:
+        with self.lock:
+            row = self.conn.execute(
+                """
+                SELECT id, url, model, priority, attempts FROM urls
+                WHERE status='pending'
+                ORDER BY priority DESC, id ASC
     def process_next_job(self) -> bool:
         with self.lock:
             row = self.conn.execute(
@@ -119,6 +216,28 @@ class DetectionService:
                 """
             ).fetchone()
             if not row:
+                return None
+            now = datetime.utcnow().isoformat()
+            self.conn.execute(
+                "UPDATE urls SET status='in_progress', attempts=attempts+1, updated_at=? WHERE id=?",
+                (now, row["id"]),
+            )
+            self.conn.commit()
+            return Job(row["id"], row["url"], row["model"], row["priority"], row["attempts"])
+
+    def process_next_job(self) -> bool:
+        job = self._fetch_next_job()
+        if not job:
+            return False
+
+        try:
+            score, is_porn, message = simulate_detection(job.url, job.model)
+            status = "completed"
+        except Exception as exc:  # pragma: no cover - defensive branch
+            score, is_porn = 0.0, False
+            status = "failed"
+            message = f"error: {exc}"
+
                 return False
             job_id, url, model = row["id"], row["url"], row["model"]
             now = datetime.utcnow().isoformat()
@@ -133,6 +252,13 @@ class DetectionService:
         with self.lock:
             self.conn.execute(
                 """
+                UPDATE urls SET status=?, score=?, is_porn=?, message=?, updated_at=?
+                WHERE id=?
+                """,
+                (status, score, 1 if is_porn else 0, message, finished, job.id),
+            )
+            self.conn.commit()
+            log_event(self.conn, job.id, status, {"score": score, "is_porn": is_porn, "message": message})
                 UPDATE urls SET status='completed', score=?, is_porn=?, message=?, updated_at=?
                 WHERE id=?
                 """,
@@ -160,6 +286,10 @@ class DetectionService:
                 if exists:
                     continue
                 self.conn.execute(
+                    """
+                    INSERT INTO urls(url, status, model, priority, attempts, created_at, updated_at)
+                    VALUES(?, 'pending', 'seed', 5, 0, ?, ?)
+                    """,
                     "INSERT INTO urls(url, status, model, created_at, updated_at) VALUES(?, 'pending', 'seed', ?, ?)",
                     (generated_url, now_iso, now_iso),
                 )
@@ -171,6 +301,17 @@ class DetectionService:
 
 
 def simulate_detection(url: str, model: str) -> Tuple[float, bool, str]:
+    # Deterministic-ish pseudo model that uses keyword rules and URL entropy.
+    lower = url.lower()
+    data = score_for_text(lower)
+    random.seed(hash((url, model)))
+    jitter = random.random() * 0.15
+    score = min(0.25 + data["max_weight"] + jitter + data["total_weight"] * 0.01, 0.99)
+    is_porn = score >= 0.5
+    message = explain_score(lower)
+    if jitter > 0.1:
+        message += "; boosted by anomaly detection"
+    return round(score, 4), is_porn, message
     lower = url.lower()
     score = 0.1
     for idx, keyword in enumerate(KEYWORDS):

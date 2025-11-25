@@ -1,3 +1,142 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>文本检测队列</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>色情文本检测控制台</h1>
+        <small>批量 URL 异步检测 + 种子域名扫描 + 队列管理</small>
+      </div>
+      <div><a href="/stats" style="color:#93c5fd">统计报表</a> · <a href="/reports" style="color:#93c5fd">导出中心</a></div>
+    </header>
+    <main>
+      <div class="grid">
+        <div class="card">
+          <div class="section-header">
+            <h2>提交检测任务</h2>
+            <small>支持模型选择、优先级、批量换行</small>
+          </div>
+          <label for="urls">待检测 URL（每行一个）</label>
+          <textarea id="urls" placeholder="https://example.com/a\nhttps://example.com/b"></textarea>
+          <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-top:12px;">
+            <div>
+              <label for="model">模型</label>
+              <select id="model">
+                <option value="default">default</option>
+                <option value="fast">fast</option>
+                <option value="strict">strict</option>
+              </select>
+            </div>
+            <div>
+              <label for="priority">优先级</label>
+              <select id="priority">
+                <option value="5">低</option>
+                <option value="10" selected>正常</option>
+                <option value="20">高</option>
+                <option value="40">紧急</option>
+              </select>
+            </div>
+            <div style="display:flex; align-items:flex-end;">
+              <button id="submit-btn" style="width:100%">加入队列</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-header">
+            <h2>进度与指标</h2>
+            <button id="retry-btn">重试失败</button>
+          </div>
+          <div class="progress" aria-label="进度条">
+            <div id="progress-fill" class="fill" style="width:0%"></div>
+          </div>
+          <p style="margin-top:6px;">完成度：<span id="progress-text">0 / 0</span></p>
+          <div class="metrics">
+            <div class="metric"><span>排队中</span><strong id="pending-count">0</strong></div>
+            <div class="metric"><span>检测中</span><strong id="running-count">0</strong></div>
+            <div class="metric"><span>已完成</span><strong id="completed-count">0</strong></div>
+            <div class="metric"><span>失败</span><strong id="failed-count">0</strong></div>
+            <div class="metric"><span>命中率</span><strong id="hit-rate">0%</strong></div>
+          </div>
+          <div class="section-header" style="margin-top:12px;">
+            <small>历史数据可通过统计报表页面查看</small>
+            <button id="purge-btn">清理完成</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:16px;">
+        <div class="card">
+          <div class="section-header">
+            <h2>队列详情</h2>
+            <small>按优先级排序</small>
+          </div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>URL</th>
+                  <th>模型</th>
+                  <th>优先级</th>
+                  <th>尝试</th>
+                  <th>状态</th>
+                  <th>更新时间</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody id="queue-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-header">
+            <h2>最近结果</h2>
+            <small>最近 30 条</small>
+          </div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>URL</th>
+                  <th>模型</th>
+                  <th>得分</th>
+                  <th>状态</th>
+                  <th>优先级</th>
+                  <th>尝试</th>
+                  <th>备注</th>
+                  <th>更新时间</th>
+                </tr>
+              </thead>
+              <tbody id="results-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="section-header">
+          <h2>种子域名</h2>
+          <small>每日自动扫描并加入队列</small>
+        </div>
+        <p>当前：<span id="seed-list">加载中...</span></p>
+        <label for="seed-input">更新域名（逗号分隔）</label>
+        <input id="seed-input" placeholder="example.com, foo.bar" />
+        <div style="margin-top:8px; text-align:right;">
+          <button id="seed-save">保存</button>
+        </div>
+      </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
