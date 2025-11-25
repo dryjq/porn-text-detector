@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>色情文本检测队列</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <style>
+    body { padding: 1.5rem; }
+    textarea { min-height: 140px; }
+    .progress-bar { height: 1rem; background: #eee; border-radius: 4px; overflow: hidden; }
+    .progress-bar .fill { height: 100%; background: linear-gradient(90deg, #0ea5e9, #2563eb); width: 0; transition: width 0.2s ease; }
+    .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .tag { padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.8rem; }
+    .tag.success { background: #dcfce7; color: #166534; }
+    .tag.muted { background: #e5e7eb; color: #374151; }
+    .tag.danger { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>文本涉黄检测任务队列</h1>
+    <p>批量提交 URL，异步检测并查看实时进度。每日会根据“种子域名”自动发现新 URL 并加入队列。</p>
+    <nav>
+      <ul>
+        <li><a href="/">检测队列</a></li>
+        <li><a href="/stats">统计报表</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="grid">
+    <section>
+      <h3>提交待检测 URL</h3>
+      <label for="model">检测模型</label>
+      <select id="model">
+        <option value="default">默认模型</option>
+        <option value="fast">快速模型</option>
+        <option value="accurate">高精度模型</option>
+      </select>
+      <label for="urls">URL 列表（每行一条）</label>
+      <textarea id="urls" placeholder="https://example.com/post/1\nhttps://example.com/post/2"></textarea>
+      <button id="submit-btn">加入队列</button>
+    </section>
+
+    <section>
+      <h3>队列进度</h3>
+      <div class="progress-bar">
+        <div id="progress-fill" class="fill"></div>
+      </div>
+      <p id="progress-text">0 / 0</p>
+      <div class="status-grid">
+        <article>
+          <strong>待处理</strong>
+          <p id="pending-count">0</p>
+        </article>
+        <article>
+          <strong>进行中</strong>
+          <p id="running-count">0</p>
+        </article>
+        <article>
+          <strong>已完成</strong>
+          <p id="completed-count">0</p>
+        </article>
+        <article>
+          <strong>命中率</strong>
+          <p id="hit-rate">0%</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <section>
+    <header>
+      <h3>最近检测结果</h3>
+    </header>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>URL</th>
+          <th>模型</th>
+          <th>分数</th>
+          <th>结果</th>
+          <th>更新时间</th>
+        </tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <header>
+      <h3>种子域名</h3>
+      <p>每日循环扫描“种子域名”，生成新 URL 自动加入队列。可在此更新。</p>
+    </header>
+    <div class="grid">
+      <div>
+        <label for="seed-input">种子域名（逗号分隔）</label>
+        <input id="seed-input" type="text" placeholder="example.com, foo.bar" />
+        <button id="seed-save">更新域名</button>
+      </div>
+      <div>
+        <p>当前域名：<span id="seed-list">(加载中)</span></p>
+      </div>
+    </div>
+  </section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
