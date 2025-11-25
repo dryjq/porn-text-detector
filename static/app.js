@@ -28,6 +28,7 @@ async function loadProgress() {
 
 async function loadResults() {
   const res = await fetch('/api/results?limit=30');
+  const res = await fetch('/api/results?limit=20');
   const data = await res.json();
   const body = document.getElementById('results-body');
   body.innerHTML = '';
@@ -42,6 +43,10 @@ async function loadResults() {
       <td>${row.priority}</td>
       <td>${row.attempts}</td>
       <td>${row.message || ''}</td>
+      <td>${row.url}</td>
+      <td>${row.model}</td>
+      <td>${row.score !== null ? row.score.toFixed(2) : '-'}</td>
+      <td>${renderStatus(row)}</td>
       <td>${row.updated_at || ''}</td>
     `;
     body.appendChild(tr);
@@ -92,6 +97,13 @@ async function submitUrls() {
     await loadProgress();
     await loadResults();
     await loadQueue();
+  const btn = document.getElementById('submit-btn');
+  btn.setAttribute('aria-busy', 'true');
+  try {
+    await postJSON('/api/enqueue', { urls, model });
+    document.getElementById('urls').value = '';
+    await loadProgress();
+    await loadResults();
   } catch (err) {
     alert(err.message);
   } finally {
@@ -165,3 +177,11 @@ async function actionHooks() {
   setInterval(loadQueue, 3000);
   setInterval(loadResults, 5000);
 }
+document.getElementById('submit-btn').addEventListener('click', submitUrls);
+document.getElementById('seed-save').addEventListener('click', saveSeeds);
+
+loadProgress();
+loadResults();
+loadSeeds();
+setInterval(loadProgress, 2000);
+setInterval(loadResults, 5000);

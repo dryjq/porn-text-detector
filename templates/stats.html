@@ -41,4 +41,44 @@
     </main>
     <script src="/static/stats.js"></script>
   </body>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>检测统计</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>body { padding: 1.5rem; }</style>
+</head>
+<body>
+  <header>
+    <h1>统计报表</h1>
+    <nav>
+      <ul>
+        <li><a href="/">检测队列</a></li>
+        <li><a href="/stats">统计报表</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="grid">
+    <section>
+      <h3>按天检测数量</h3>
+      <canvas id="daily-chart"></canvas>
+    </section>
+    <section>
+      <h3>模型调用次数</h3>
+      <canvas id="model-chart"></canvas>
+    </section>
+  </main>
+
+  <section>
+    <article>
+      <h4>色情命中率</h4>
+      <p id="hit-rate-text">加载中...</p>
+    </article>
+  </section>
+
+  <script src="/static/stats.js"></script>
+</body>
 </html>

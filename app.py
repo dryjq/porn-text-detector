@@ -51,6 +51,8 @@ def create_app(db_path: Optional[str] = None, enable_workers: bool = True) -> Fl
             return jsonify({"message": "No URLs provided"}), 400
         inserted = service.enqueue_urls(urls, model=model, priority=priority)
         return jsonify({"message": f"Queued {inserted} URLs", "count": inserted})
+        service.enqueue_urls(urls, model=model)
+        return jsonify({"message": f"Queued {len(urls)} URLs", "count": len(urls)})
 
     @app.route("/api/progress")
     def progress():

@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from detection_service import DetectionService, simulate_detection
+from detection_service import DetectionService
 
 
 def test_processes_urls_without_workers(tmp_path):
@@ -13,6 +14,8 @@ def test_processes_urls_without_workers(tmp_path):
 
     inserted = service.enqueue_urls(["https://example.com/a", "https://adult.com/b"], model="fast")
     assert inserted == 2
+    service.enqueue_urls(["https://example.com/a", "https://adult.com/b"], model="fast")
+
     assert service.progress()["pending"] == 2
 
     while service.process_next_job():
@@ -78,3 +81,7 @@ def test_simulate_detection_scoring():
     assert score > 0.5
     assert is_porn is True
     assert "Matched" in msg
+    # Manually trigger seed enqueue
+    service._enqueue_seed_urls()
+    progress = service.progress()
+    assert progress["pending"] == 1

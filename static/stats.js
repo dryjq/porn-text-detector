@@ -5,6 +5,11 @@ async function fetchStats() {
 
 function buildLineChart(ctx, labels, data, label, color) {
   return new Chart(ctx, {
+function renderDailyChart(ctx, data) {
+  const labels = data.map((d) => d.day);
+  const totals = data.map((d) => d.total);
+  const hits = data.map((d) => d.hits);
+  new Chart(ctx, {
     type: 'line',
     data: {
       labels,
@@ -23,6 +28,18 @@ function buildLineChart(ctx, labels, data, label, color) {
 
 function buildBarChart(ctx, labels, data, label, color) {
   return new Chart(ctx, {
+        { label: '检测数量', data: totals, borderColor: '#2563eb', tension: 0.2 },
+        { label: '命中数量', data: hits, borderColor: '#dc2626', tension: 0.2 },
+      ],
+    },
+    options: { responsive: true },
+  });
+}
+
+function renderModelChart(ctx, data) {
+  const labels = data.map((d) => d.model || '未指定');
+  const totals = data.map((d) => d.total);
+  new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
@@ -72,3 +89,18 @@ async function render() {
 }
 
 render();
+        { label: '调用次数', data: totals, backgroundColor: '#0ea5e9' },
+      ],
+    },
+    options: { responsive: true },
+  });
+}
+
+async function init() {
+  const data = await fetchStats();
+  document.getElementById('hit-rate-text').innerText = `${Math.round((data.hit_rate || 0) * 100)}%`;
+  renderDailyChart(document.getElementById('daily-chart'), data.daily_counts || []);
+  renderModelChart(document.getElementById('model-chart'), data.model_usage || []);
+}
+
+init();

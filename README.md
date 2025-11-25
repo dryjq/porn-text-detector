@@ -40,6 +40,9 @@
 - 事件流表 `events` 记录队列关键节点：`event` 字段包含 `enqueued/completed/failed`，`payload` 为 JSON 字符串。
 - 可以通过 `sqlite3 app.db 'SELECT * FROM events ORDER BY id DESC LIMIT 20'` 直接查询，或在 `/reports` 页面查看最近 200 条事件。
 
+- 命中率汇总以百分比展示，所有统计均来自 `urls` 表 `completed` 状态的数据。
+- 统计数据接口 `/api/stats` 支持前端或第三方 BI 拉取。
+
 ## 实验管理
 
 ### SQLite 表概览

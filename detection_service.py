@@ -23,6 +23,19 @@ class Job:
 class DetectionService:
     """Coordinates async detection, seeding, and progress tracking."""
 
+import sqlite3
+import threading
+import time
+from datetime import datetime
+from typing import Dict, Iterable, List, Optional, Tuple
+
+from database import init_db
+
+
+KEYWORDS = ["porn", "xxx", "adult", "nsfw", "裸", "情色", "黄片"]
+
+
+class DetectionService:
     def __init__(
         self,
         db_path: str,
@@ -77,6 +90,18 @@ class DetectionService:
                 inserted += 1
             self.conn.commit()
         return inserted
+    def enqueue_urls(self, urls: Iterable[str], model: str = "default") -> None:
+        now = datetime.utcnow().isoformat()
+        with self.lock:
+            for url in urls:
+                self.conn.execute(
+                    """
+                    INSERT INTO urls(url, status, model, created_at, updated_at)
+                    VALUES(?, 'pending', ?, ?, ?)
+                    """,
+                    (url, model, now, now),
+                )
+            self.conn.commit()
 
     def progress(self) -> Dict[str, float]:
         with self.lock:
@@ -123,6 +148,10 @@ class DetectionService:
                 ORDER BY id DESC
                 LIMIT ?
                 """,
+    def recent_results(self, limit: int = 50) -> List[Dict[str, str]]:
+        with self.lock:
+            rows = self.conn.execute(
+                "SELECT id, url, model, score, is_porn, status, updated_at FROM urls ORDER BY id DESC LIMIT ?",
                 (limit,),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -176,6 +205,13 @@ class DetectionService:
                 SELECT id, url, model, priority, attempts FROM urls
                 WHERE status='pending'
                 ORDER BY priority DESC, id ASC
+    def process_next_job(self) -> bool:
+        with self.lock:
+            row = self.conn.execute(
+                """
+                SELECT id, url, model FROM urls
+                WHERE status='pending'
+                ORDER BY id
                 LIMIT 1
                 """
             ).fetchone()
@@ -202,6 +238,16 @@ class DetectionService:
             status = "failed"
             message = f"error: {exc}"
 
+                return False
+            job_id, url, model = row["id"], row["url"], row["model"]
+            now = datetime.utcnow().isoformat()
+            self.conn.execute(
+                "UPDATE urls SET status='in_progress', updated_at=? WHERE id=?",
+                (now, job_id),
+            )
+            self.conn.commit()
+
+        score, is_porn, message = simulate_detection(url, model)
         finished = datetime.utcnow().isoformat()
         with self.lock:
             self.conn.execute(
@@ -213,6 +259,12 @@ class DetectionService:
             )
             self.conn.commit()
             log_event(self.conn, job.id, status, {"score": score, "is_porn": is_porn, "message": message})
+                UPDATE urls SET status='completed', score=?, is_porn=?, message=?, updated_at=?
+                WHERE id=?
+                """,
+                (score, 1 if is_porn else 0, message, finished, job_id),
+            )
+            self.conn.commit()
         return True
 
     def _seed_loop(self) -> None:
@@ -238,6 +290,7 @@ class DetectionService:
                     INSERT INTO urls(url, status, model, priority, attempts, created_at, updated_at)
                     VALUES(?, 'pending', 'seed', 5, 0, ?, ?)
                     """,
+                    "INSERT INTO urls(url, status, model, created_at, updated_at) VALUES(?, 'pending', 'seed', ?, ?)",
                     (generated_url, now_iso, now_iso),
                 )
                 self.conn.execute(
@@ -259,3 +312,12 @@ def simulate_detection(url: str, model: str) -> Tuple[float, bool, str]:
     if jitter > 0.1:
         message += "; boosted by anomaly detection"
     return round(score, 4), is_porn, message
+    lower = url.lower()
+    score = 0.1
+    for idx, keyword in enumerate(KEYWORDS):
+        if keyword in lower:
+            score = max(score, 0.6 + idx * 0.05)
+    score = min(score, 0.99)
+    is_porn = score >= 0.5
+    message = "keyword hit" if is_porn else "safe"
+    return score, is_porn, message
